@@ -1,0 +1,1641 @@
+<HTML>
+
+<head>
+
+<title>Emu3270 TN3270 Emulator, Technical Documentation.</title>
+
+<META  name="description" 
+  content="Emu3270 TN3270 Emulator.">
+
+<META name="keywords" 
+  content="Emu3270 TN3270 Emulator">
+
+</head>
+
+<body bgcolor="FFAEFF">   
+<p>
+<center><b><h1>Emu3270 TN3270 Emulator</b></h1></center>
+<center><b><h3>By David Fahey</b></h3></center>
+
+<center><img src="about.jpg" vspace=1></center>
+<p>
+<h2>Introduction</h2>
+The operating systems MVS, CMS, and DOS/VSE use a class of device 
+called an IBM 3270 terminals, often called 3270's. 
+There are many versions of this device whos life time spans some twenty years. 
+These devices are no longer manufactured by IBM however a great many of 
+them are still being used, and in many cases the physical 3270 device 
+has been replaced by an 3270 emulator, a program that may run on a Unix 
+workstation or a personal computer. 
+<p>
+The capabilities of 3270 class devices include: 
+<ul>
+  <li>Upper case only text output. 
+  <li>Dual case text output. 
+  <li>Field specification. 
+  <li>Field highlighting. 
+  <li>Extended field high lighting. 
+  <li>Colored fields. 
+  <li>Character cell high lighting. 
+  <li>Multiple character set selection. 
+  <li>Programmed symbols. 
+  <li>Vector graphics.
+</ul> 
+<p>
+
+The range of common IBM 3270 devices include:
+<ul> 
+  <li>3276 - Upper case only monochrome device with field support, and a 
+      built in controller. 
+  <li>3277 - Upper case only monochrome device with field support. 
+  <li>3278 - Dual case monochrome device that could be upgraded to have programmed 
+      symbol support, with the addition of a printed circuit card. 
+  <li>3279 - Dual case color device with programmed symbol support, extended 
+      fields, multiple character set support, and character cell highlighting. 
+  <li>3290 - A large screen device with similar capabilities to the 3278, 
+      with multi session support. 
+  <li>3178 - Newer version of the 3278, with light weight plastic case. 
+  <li>3179 - Newer version of the 3279, with light weight plastic case. 
+  <li>3180 - Newer version of the 3278, with light weight plastic case. 
+  <li>3179G - All the features of the 3179 with a vector graphic facility, 
+      and an optional mouse attachment. 
+  <li>3192G - Same as the 3179G with few differences. 
+  <li>3193 - Display Station (attributes ?). 
+  <li>3472G - Light weight version of the 3179G with built in mouse, 
+      and multiple session support. </ul> 
+<p>
+The above list does not include 3270 style printers (3262, 3268, 3287, 
+3289, 4214, 4250, 5210)
+<p>
+This document describes a Windows 95/NT Telnet emulator that emulates the  
+3277 terminal that has some 3279 features. It describes in detail 
+how the emulator was created using the 
+Delphi RAD (Rapid Application Developement) tool. The emulator is 
+called Emu3270, hence the emu bird icon. Emu3270 was created 
+as a prototype to determine if Delphi was a viable tool to build
+this sort of application.  
+<p>
+<h2>Emu3270 Overview</h2>
+
+After starting the Emu3270.exe program the Emu3270 window appears.
+The window has a limited set of menus and has a status area at 
+the bottom of the window, formatted to look like it would on
+a real 3270. Some newer 3270's display the cursors row/column information
+at the lower right of the screen status area and so Emu3270 does. 
+The status window can be made to display additional
+information (unlike a real 3270) by using the Shift+ESC keys, and
+this can be turned off by using Shft+ESC again. The additional
+information displayed has the form:
+<p>
+<pre>
+K=S 1B   D=00 A=00 H=00 S=00 C=00
+</pre>
+<p> 
+Where K= refers to the shift state and hex key code of the last pressed key.
+D= refers to the data (hex ascii) at the currently displayed cursor location. A=
+refers to the 3270 attribute (hex ebcdic). H= refers to the character highlight
+(hex ebcdic). S= refers to the symbol set (hex ebcdic). C= refers to the 
+characters color (hex ebcdic).
+<p>
+The cursor is initially displayed at location 1,1 (the top left hand corner) 
+on the screen, and is shaped like an underscore. The PageUp key can be used 
+to change the shape of the cursor to a rectangle.
+<p>
+From the Test menu, selecting "Test On" will fill the screen with all 
+the characters that can be drawn on the display. 
+<p>
+<img src="test.jpg" vspace=1>
+<p>
+As you can see these characters are drawn with a windows font, therefore
+not all of these are available to the host system (this is dependant on
+the translate table in util.pas). This test screen was used early in the 
+developement of the emulator, before any connection to a host was available,
+and so it does not require a host connection. Some real 3278 devices have
+a switch on the front panel that performs a similar function. While
+the test screen is displayed keyboard input is inhibited, and you will
+also notice that the status area has changed. From the Test menu, 
+selecting "Test Off" will display whatever was in the Emu3270's input
+buffer before the test screen was displayed.
+<p>
+Also from the Test menu, selecting "Test Fields On" will display the 
+field test screen.
+On this screen the input is not inhibited, and the cursor is displayed.
+This screen also allowed testing of the emulator before the host connection
+was coded. This test should not be used when a connection is established
+as modified data on this screen will be sent back to the host, and results
+will be un predictable. 
+<p>
+The field test screen demonstrates all the features of entry fields on a 3270, including
+some features of the extended entry field. In particular notice how the 
+Tab key and Shift+Tab key opperate. Special mechanisms were required 
+to get access to these key strokes. Tabbing moves the cursor between 
+fields that are unprotected (allowing data entry). Other fields (like the
+titles) are protected, and data entry is not allowed at those positions.
+<p>
+Also notice that the mouse can be used 
+to move the 3270 cursor to the location of the mouse pointer with
+a left mouse button click. Any point on the 3270 screen can be 
+reached quickly in this manner. Very few real 3270's have this 
+ability. 
+<p>
+As data is typed into the fields it retains the color and highlighting
+of that field. The start of a field occupies the display character 
+to the left of the field, and can not be seen, or typed into. 
+If you try to type into a location that is not set up as an
+input field the keyboard will lock. When the keyboard locks an
+error code will be displayed inthe 3270 status area. For example:
+<br>
+X ?+ 
+<p>
+or maybe:
+<br>
+X Num
+<p>
+The first indicates that characters can not be typed here, and the 
+second indicates that you can not type non-numeric characters here.
+To unlock the key board use the left hand Ctrl key, this performs
+the reset function.
+<p>
+Notice the column in the table titled "Blink". The data below it
+are not blinking, instead they are over striked characters. It was much
+easier to program overstrike than blinking. On windows an aditional
+thread would be required to cause these fields to blink. Many 
+3270 emulators omit this 3270 feature, probably for the same reason.
+Few applications actually use the blink attribute as it has proven
+far to distracting to the user.
+<p>
+Positioning the cursor in an input field and then selecting one of
+the Alt+F1 ... Alt+F8 keys will change the color of the next 
+character typed. The keys Alt+F8 ... Alt+F12 will change the 
+highlight that the next character typed will have. This is a feature
+that 3270 extended data stream devices like the 3279 and above 
+support. This feature is not fully supported on Emu3270.
+<p> 
+From the Test menu selecting "Debug On/Off" will display a
+new window, which will initially be empty until a session
+with a remote host is established. When the session is established
+the window will display a trace of important events, and data arriving and 
+being sent. Some lines of data are displayed in a dump format that
+has 3 areas. The left id formatted in hex, the first *....* column is 
+the ascii character representation, and the last *....* column is
+the ebcdic character representation. The debug trace provides 
+a lot of information about data moving to and from
+the emulator. It breaks down the data into its component
+parts, including telnet protocol and 3270 data-stream commands
+orders and data.
+<p>
+To connect to a host system use the "Connect" menu and select
+the "Remote System ..." item. The following dialog box will be displayed:
+<p>
+<img src="connect.jpg" vspace=1>
+<p>
+Enter the host system name and the required screen size, then select
+connect. The hosts logon screen or Telnet menu should then appear:
+<p>
+<img src="emuwind.jpg" vspace=1>
+<p>
+When this appears you can interact with the host just as you would
+with a real 3270. Three final things can be done to customize the
+emulator to your requirements:
+<ul>
+<li>Key settings.
+<p>
+      Select the "Edit" menus "Key Map ..." selection to display the
+      keyboard key associations that are currently in effect.
+      <p>
+      <img src="keymap.jpg" vspace=1>
+      <p>
+      To list out the current associations select the "List Keys" button, and
+      a window will be displayed that contains a list of all the 
+      key names and their associated function.
+      <p>
+      To change a key setting; select the accelerator tab (Standard, Shift,
+      Control, or Alt), then select the key, and then select the function 
+      from the listbox at the bottom left of the window. To make the new 
+      association select the "Set Key" button. The current and 
+      new key association will be displayed in the panel to the right of the 
+      list box. Further keys can be assigned in this manner. Select the "OK"
+      button to save the new key association(s) or cancel if you were
+      just kidding!  Key associations are saved from session to session
+      in the Emu3270.cfg file. This file is in text format and can be 
+      edited (with care) if desired.   
+      
+<p>
+<li>Color mapping.
+<p>
+      Select the "Edit" menus "Change Color ..." selection to display the
+      colors that are currently in effect.
+      <p>
+      <img src="color.jpg" vspace=1>
+      <p>
+      To change a color select the color block. A dialog box of colors 
+      is displayed, pick a new color and select the "OK" button. Then select
+      OK from the color assignments window. Colors are saved from session 
+      to session in the Emu3270.cfg file. This file is in text format and can be 
+      edited (with care) if desired.   
+      
+<p>
+<li>Font changes.
+<p>
+      Select the "Edit" menus "Change Font ..." selection to display the standard
+      fonts dialog. The current font is shown preselected.
+      To change the font select another font name and font size and 
+      select the "OK" button. Fonts are saved from session 
+      to session in the Emu3270.cfg file. This file is in text format and can be 
+      edited (with care) if desired.   
+<p>
+</ul> 
+ 
+To exit from Emu3270 select the "Connect" menu "Exit" selection, or close
+the window with the Windows border control.            
+
+
+<h2>Programming Emu3270 using Delphi</h2>  
+<p>
+See the appendix for the Emu3270 structure diagram.
+<p>
+The main unit is screenu.pas which contains the code for the
+main form screenf. The bold box around RecThrd.pas indicates
+that it runs as a separate thread from the other units. Data flow
+is indicated by the solid arrows.
+<p>
+Data enters at the left from the
+winsock cloud and is received by RecThrd.pas where the Telnet
+protocol is removed and the 3270 data stream is passed to ds3270u.pas.
+From ds3270u.pas the inbound 3270 data stream is decoded and 
+the screen buffer (ScrBuf) is updated, also the cursor location 
+(CsrRow,CsrCol) may be changed. The buffer is displayed on the 
+canvas (ScrImage1.Canvas) by screenu.pas.
+<p>
+The screenu.pas unit also handles the input from the 
+keyboard, modifying the screen buffer as needed, and sending 
+data outbound via ds3270u.pas when an Enter, FF, or PA Key
+is pressed. ds3270u.pas then sends data back to the host via
+the SendData procedure in Telnetu.pas     
+<p>  
+Other units connected to screenu.pas are all started from
+the menus displayed on the screenf form. 
+<p>
+<!-------------------------------------------------------------------------------->
+<h3>Delphi and Winsock.</h3>
+
+The following debug trace shows the winsock related info 
+that is written aa a successful connection is made.  
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+TCP Started.
+Socket opened OK.
+Foreign host name: mvs.abc.com
+    Address type: 2
+    Address length: 4
+    Foreign host address: 10.253.1.2
+Local host name: farenheit.pc.abc.com
+    Address type: 2
+    Address length: 4
+    Local host address: 10.26.2.148
+Bind successful
+Remote Service Info.:
+    Name: telnet
+    Port: 23
+Connected.
+Send:  (0)
+Receive thread started.
+</pre></td></tr><tr><td>Figure 1. - Winsock connection trace.</td></tr></table>
+<p>
+
+The code that establishes the socket connection is the MakeConnect procedure
+in the telnetu.pas unit. It firstly uses WSAStartup() to set the version
+if winsock to use. Then it uses gethostbyname() to get the IP address of
+the remote host (mainframe ?) the user entered. In the log above you can see
+that 10.253.1.2 was returned for mvs.abc.com. As that worked it then uses gethostname()
+to get the IP address of the local host (windows PC). Here the IP address
+returned is 10.26.2.148 and the machines name is farenheit.pc.abc.com. 
+<p>
+Once the addresses have been found a new socket (soc: of type TSocket)
+is bound to the local address with bind(soc,psaddr^,SizeOf(LocalAddr)).
+<p> 
+Then getservbyname('telnet','tcp') is used to get the well known port used 
+by telnet on the remote host. This is port 23. 
+<p>
+With this preliminary information gathered a connection can then be 
+established. This is done with connect(soc,psaddr^,SizeOf(RemoteAddr)).
+This is the first time a link is established accross the network.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure  TcpStartup ;
+var
+  err: integer ;
+  VersionReq: word ;
+  wsaData: TWSAData ;
+begin
+  VersionReq := $0101 ;
+  err := WSAStartup(VersionReq,wsaData) ;
+end ;
+
+procedure MakeConnect ;
+type
+  TPint = ^Longint ;
+var
+  err: integer ;
+  phost: PHostEnt ;
+  ina: TInAddr ;
+  lina: TInAddr ;
+  pint: TPint ;
+  RemoteHostName: TPath ;
+  PRemoteHostName: PChar ;
+  LocalHostName: TPath ;
+  PLocalHostName: PChar ;
+  LocalAddr: TSockAddrIn ;
+  psaddr: PSockAddr ;
+  RemoteAddr: TSockAddrIn ;
+  pServAddr: PServEnt ;
+  usPort: u_short ;
+  InitCmd: string ;
+  NonBlocked: u_long ;
+begin
+<b>  TcpStartup() ; </b>
+  if deb then
+    Log('TCP Started.') ;
+  soc := socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) ;
+  if soc = INVALID_SOCKET then
+    begin
+      Log('Error socket invalid.') ;
+      socOpen := False ;
+    end
+  else
+    begin
+      if deb then
+        Log('Socket opened OK.') ;
+      socOpen := True ;
+    end ;
+
+  { get foreign host name and addr }
+  PRemoteHostName := @RemoteHostName ;
+  StrPCopy(PRemoteHostName,ConnectHostName) ;
+<b>  phost := gethostbyname(PRemoteHostName) ; </b>
+  if phost = nil then
+    begin
+      Log('Error, failed to find host.') ;
+      Disconnect ;
+    end
+  else
+    begin
+      if deb then
+        begin
+          Log('Foreign host name: '
+            +PChar(phost^.h_name)) ;
+          Log('    Address type: '
+            +format('%x',[phost^.h_addrtype])) ;
+          Log('    Address length: '
+            +format('%d',[phost^.h_length])) ;
+        end ;
+      pint := Pointer(phost^.h_addr_list^) ;
+      ina.s_addr := pint^ ;
+      if deb then
+        Log('    Foreign host address: '
+          +PChar(inet_ntoa(ina))) ;
+
+      { get local host name and addr }
+      PLocalHostName := @LocalHostName ;  
+<b>      if gethostname(PLocalHostName,MAX_PATH) <> SOCKET_ERROR then  </b>
+        begin
+<b>          phost := gethostbyname(PLocalHostName) ;</b>
+          if phost = nil then
+            begin
+              Log('Error, failed to find local host.') ;
+              Disconnect ;
+            end
+          else
+            begin
+              if deb then
+                begin
+                  Log('Local host name: '
+                    +PChar(phost^.h_name)) ;
+                  Log('    Address type: '
+                    +format('%x',[phost^.h_addrtype])) ;
+                  Log('    Address length: '
+                    +format('%d',[phost^.h_length])) ;
+                end ;
+              pint := Pointer(phost^.h_addr_list^) ;
+              lina.s_addr := pint^ ;
+              if deb then
+                Log('    Local host address: '
+                  +PChar(inet_ntoa(lina))) ;
+
+              { bind socket to addr }
+              LocalAddr.sin_family := AF_INET ;
+              LocalAddr.sin_addr.s_addr := lina.s_addr ;
+              LocalAddr.sin_port := htonl(INADDR_ANY) ;
+              psaddr := Pointer(@LocalAddr) ;
+<b>              err := bind(soc,psaddr^,SizeOf(LocalAddr)) ;</b>
+              if err = SOCKET_ERROR then
+                begin
+                  Log('Bind error: '
+                    +Format('%d',[WSAGetLastError()])) ;
+                  Disconnect ;
+                end
+              else
+                begin
+                  if deb then
+                    Log('Bind successful') ;
+
+                  { get service port }
+<b>                  pServAddr := getservbyname('telnet','tcp') ;</b>
+                  if pServAddr <> nil then
+                    begin
+                      if deb then
+                        begin
+                          Log('Remote Service Info.:') ;
+                          Log('    Name: '+PChar(pServAddr^.s_name)) ;
+                          Log('    Port: '+Format('%d'
+                            ,[ntohs(pServAddr^.s_port)])) ;
+                        end ;
+                      usPort := pServAddr^.s_port ;
+
+                      { connect to server }
+                      RemoteAddr.sin_family := AF_INET ;
+                      RemoteAddr.sin_addr.s_addr := ina.s_addr ;
+                      RemoteAddr.sin_port := usPort ;
+                      psaddr := Pointer(@RemoteAddr) ;
+<b>                      err := connect(soc,psaddr^,SizeOf(RemoteAddr)) ;</b>
+                      if err = SOCKET_ERROR then
+                        begin
+                          Log('Connect error: '
+                            +Format('%d',[WSAGetLastError()])) ;
+                          Disconnect ;
+                        end
+                      else
+                        begin
+                          if deb then
+                            Log('Connected.') ;
+
+                          { start thread to receive all data - will
+                            also do all telnet negotiation }
+<b>                          RecThread := RecvThrd.Create(soc) ;</b>
+
+                          { send CR LF to get server started }
+<b>                          SendData(InitCmd) ;</b>
+                        end ;
+                    end
+                  else
+                    begin
+                      Log('Getservbyname error: '
+                        +Format('%d',[WSAGetLastError()])) ;
+                      Disconnect ;
+                    end ;
+
+                end ;
+            end ;
+        end
+      else
+        begin
+          Log('Get local host error:'
+            +Format('%d',[WSAGetLastError()])) ;
+          Disconnect ;
+        end ;
+    end ;
+end;
+</pre></td></tr><tr><td>Figure 2. - Winsock - making a connection (in telnetu.pas).</td></tr></table>
+<p>
+The SendData procedure is used by MakeConnect to send some initial
+data to the remote host. It is also used by the DataOut() and DataOutShort() 
+procedures in the ds3270u.pas unit to send binary data back to the 
+remote system when the user presses Enter, a PF key, or an Attention key (PA key),
+of if the remote system issued a ReadBuffer.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure SendData(sdata: string) ;
+const
+  C_CR    = $0A ; { carrage return }
+  C_LF    = $0D ; { line feed }
+type
+  TOutBuf = array[0..4096] of char ;
+var
+  err: integer ;
+  size: integer ;
+  pc: PChar ;
+  OutBuffer: TOutBuf ;
+  i: integer ;
+begin                 
+  if EorFlag then
+    sdata := sdata + Char(IAC) + Char(C_EOR) ;
+  pc := @OutBuffer ;
+  StrPCopy(pc,sdata) ;
+  size := Length(sdata) ;
+<b>  err := send(soc,OutBuffer,size,0) ;</b>
+  if err = SOCKET_ERROR then
+    Log('Send error: '
+      +Format('%d',[WSAGetLastError()]))
+  else
+    begin
+      if deb then
+        begin
+          Log('Send: '+Format(' (%d)',[size])) ;
+          for i:=0 to (size-1) do
+            DumpChar(OutBuffer[i]) ;
+          DumpFlush ;
+        end ;
+    end ;
+end;
+</pre></td></tr><tr><td>Figure 3. - Winsock - sending data (in telnetu.pas).</td></tr></table>
+<p>
+Once a connection has been established a thread is created 
+to receive data from the remote host. This thread uses
+the ioctlsocket(IOSocket,FIONREAD,AmmountWaiting) function
+and recv(IOSocket,InBuffer,size,0) function to read 
+data into a buffer for processing. The method uses  
+a polled use of ioctlsocket(IOSocket,FIONREAD,AmmountWaiting)
+to determine if data exists to be read and if so uses 
+recv() to read the data. This allows the socket to remain
+unblocked for use by the send() function used in the 
+other thread.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+
+procedure RecvThrd.Execute ;
+type
+  PTelCmd = ^TTelCmd ;
+  TTelCmd = packed record
+    c_iac: Byte ;
+    c_cmd: Byte ;
+    c_func: Byte ;
+  end ;
+  PTelTermCmd = ^TTelTermCmd ;
+  TTelTermCmd = packed record
+    c_iac:  Byte ;
+    c_sb:   Byte ;
+    c_term: Byte ;
+    c_is:   Byte ;
+    c_type: array[1..10] of char ;
+    c_iace: Byte ;
+    c_se:   Byte ;
+  end ;
+
+var
+  InDataLen: integer ;
+  OutDataLen: integer ;
+  err: integer ;
+  size: integer ;
+  pc: PChar ;
+  i: integer ;
+  pInTcmd: PTelCmd ;
+  pOutTcmd: PTelCmd ;   
+  pOutTermTcmd: PTelTermCmd ;
+  outstr: string ;
+  InBuffer: TBuf ;
+  OutBuffer: TBuf ;
+  AmmountWaiting: u_long ;
+  WaitMilliSecs: integer ;
+begin   
+  outstr := '' ;
+  RecThreadRunning := true ;
+  WaitMilliSecs := 25 ;
+  
+  { wait for some data on the socket }
+  AmmountWaiting := 0 ;
+  while AmmountWaiting = 0 do
+    begin
+<b>      err := ioctlsocket(IOSocket,FIONREAD,AmmountWaiting) ;</b>
+      if err = SOCKET_ERROR then
+        Log('IOctlsocket error: '
+          +Format('%d',[WSAGetLastError()]))
+      else
+        if deb then Log('Input queue length: '
+          +Format('%d',[AmmountWaiting])) ;  
+      if AmmountWaiting = 0 then
+        Sleep(WaitMilliSecs) ;
+      if Terminated then
+        break ;
+    end ;
+
+  size := SizeOf(InBuffer) ;
+  pc := @InBuffer ;
+<b>  err := recv(IOSocket,InBuffer,size,0) ;</b>
+  if err = SOCKET_ERROR then
+    Log('Recv error: '+Format('%d',[WSAGetLastError()]))
+  else
+    begin  { recv OK }
+      InDataLen := err ;
+      if deb then
+        begin
+          Log('Recv: '+Format(' (%d)',[InDataLen])) ;
+          for i:=0 to (InDataLen-1) do
+            DumpChar(InBuffer[i]) ;
+          DumpFlush ;
+        end ;
+
+      { check for telnet commands and reply to them }
+      OutDataLen := 0 ;
+      pInTcmd := Pointer(@InBuffer) ;
+      pOutTcmd := Pointer(@OutBuffer) ;
+      while InDataLen > 0 do
+        begin
+
+          { 
+          ....
+          Lots of code removed from here.
+          The code here decodes and removes the telnet data stream
+          and sends the 3270 datastream to ds3270u for processing.
+          ....
+          }
+
+          if InDataLen = 0 then
+            begin
+<b>              err := ioctlsocket(IOSocket,FIONREAD,AmmountWaiting) ;</b>
+              if err = SOCKET_ERROR then
+                Log('IOctlsocket error: '
+                  +Format('%d',[WSAGetLastError()]))
+              else
+                if deb and (AmmountWaiting > 0) then
+                  Log('Input queue length: '+Format('%d'
+                    ,[AmmountWaiting])) ;
+
+              if OutDataLen > 0 then
+                begin  { send some telnet command responses }
+                  pOutTcmd^.c_iac := $00 ; { mark end of out buffer }
+                  { send output buffer }
+<b>                  err := send(IOSocket,OutBuffer,OutDataLen,0) ;</b>
+                  if err = SOCKET_ERROR then
+                    Log('Send IAC error: '+Format('%d'
+                      ,[WSAGetLastError()])) ;
+
+                  if deb then
+                    begin
+                      Log('Send: '+Format(' (%d)',[OutDataLen])) ;
+                      for i:=0 to (OutDataLen-1) do
+                        DumpChar(OutBuffer[i]) ;
+                      DumpFlush ;
+                    end ;
+
+                  pOutTcmd := Pointer(@OutBuffer) ;
+                  OutDataLen := 0 ;
+                end ;
+
+              { wait for some data on the socket }
+              AmmountWaiting := 0 ;
+              while AmmountWaiting = 0 do
+                begin
+<b>                  err := ioctlsocket(IOSocket,FIONREAD,AmmountWaiting) ;</b>
+                  if err = SOCKET_ERROR then
+                    Log('IOctlsocket error: '
+                      +Format('%d',[WSAGetLastError()]))
+                  else
+                    if deb and (AmmountWaiting > 0) then
+                      Log('Input queue length: '+Format('%d'
+                        ,[AmmountWaiting])) ;
+                  if AmmountWaiting = 0 then
+<b>                    Sleep(WaitMilliSecs) ;</b>
+                  if Terminated then
+                    break ;
+                end ;
+
+              { get response message from server }
+              if not Terminated then
+                begin
+                  size := SizeOf(InBuffer) ;
+<b>                  err := recv(IOSocket,InBuffer,size,0) ;</b>
+                  if err = SOCKET_ERROR then
+                    Log('Recv IAC error: '
+                      +Format('%d',[WSAGetLastError()])) ;
+                  pInTcmd := Pointer(@InBuffer) ;
+                  InDataLen := err ;
+
+                  if deb then
+                    begin
+                      Log('Recv: '+Format(' (%d)',[err])) ;
+                      for i:=0 to (err-1) do
+                        DumpChar(InBuffer[i]) ;
+                      DumpFlush ;
+                    end ;
+                end ;
+            end ;   { of send some telnet command responses }
+
+          if Terminated then
+            break ;
+        end ;  { of while datalen > 0 }
+
+    end ;  { of recv OK }
+  RecThreadRunning := false ;
+end;
+
+</pre></td></tr><tr><td>Figure 4. - Winsock - receiving data (in recthrd.pas).</td></tr></table>
+<p>
+When the application is terminated or the user requests a disconnect,
+the socket is closed with closesocket(soc), and the winsock 
+environment is released.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure TcpCleanup ;
+var
+  err: integer ;
+begin
+  err := WSACancelBlockingCall() ;
+  err := WSACleanup() ;
+end ;
+
+
+procedure Disconnect ;
+begin
+  if RecThreadRunning then
+<b>    RecThread.Terminate() ; </b>
+  if socOpen then
+    begin
+      closesocket(soc) ;
+      socOpen := false ;
+    end ;
+  TcpCleanup() ;
+  if deb then
+    Log('TCP Ended.') ;
+end;
+</pre></td></tr><tr><td>Figure 5. - Winsock - disconnection (in telnetu.pas).</td></tr></table>
+<p>
+
+
+
+<!-------------------------------------------------------------------------------->
+<h3>Deciphering the Telnet protocol.</h3>
+
+The Telnet protocol is defined by a committee of people
+who use the internet as the medium to discuss and 
+agree upon the Telnet protocol specification. The specification is 
+stored at various locations on the internet. It can be located
+by searching for RFC and Telnet. RFC stands for request for
+comment. Each RFC is a document and has a number that identifies it.
+Some RFC's are stable and others are still being changed.
+The RFC's that define Telnet are fairly stable, The main
+RFC for Telnet is RFC 854. There 
+is a subset of the Telnet specification called TN3270
+that defines how Telnet can be used for communication
+of binary data between two Telnet NVT's (Network Virtual Terminals).
+In this case between emulators) and main frame hosts. The additional RFC's that document
+TN3270 are:
+<p>
+<pre>
+------------------------------------------------------------------------
+Name             Code RFC  Meaning 
+------------------------------------------------------------------------
+Transmit Binary  0    856  Change transmission to 8-bit binary 
+Echo             1    857  Allow one side to echo data it receives 
+Suppress-GA      3    858  Suppress Go-ahead signal after data 
+Status           5    859  Request for statue of a TELNET option 
+                           from remote site 
+Timing-Mark      6    860  Request timing mark be inserted in return 
+                           stream to synchronize two end of a connection 
+Terminal-Type   24    884  Exchange information about the make and model 
+                           of a terminal being used 
+End-of-Record   25    885  Terminate data sent with EOR code 
+Linemode        34    1116 Use local editing and send complete lines 
+                           instead of individual characters 
+------------------------------------------------------------------------
+</pre>
+<p>   
+The basic Telnet protocol uses an escape character 0xFF
+to indicate the begining of a Telnet command in the 
+subsequent byte. If the 0xFF is not an escape character
+it is followed by another 0xFF. The basic Telnet commands
+are:
+<p>
+<pre>
+      NAME               CODE              MEANING
+
+      SE                  240    End of subnegotiation parameters.
+      NOP                 241    No operation.
+      Data Mark           242    The data stream portion of a Synch.
+                                 This should always be accompanied
+                                 by a TCP Urgent notification.
+      Break               243    NVT character BRK.
+      Interrupt Process   244    The function IP.
+      Abort output        245    The function AO.
+      Are You There       246    The function AYT.
+      Erase character     247    The function EC.
+      Erase Line          248    The function EL.
+      Go ahead            249    The GA signal.
+      SB                  250    Indicates that what follows is
+                                 subnegotiation of the indicated
+                                 option.
+      WILL (option code)  251    Indicates the desire to begin
+                                 performing, or confirmation that
+                                 you are now performing, the
+                                 indicated option.
+      WON'T (option code) 252    Indicates the refusal to perform,
+                                 or continue performing, the
+                                 indicated option.
+      DO (option code)    253    Indicates the request that the
+                                 other party perform, or
+                                 confirmation that you are expecting
+                                 the other party to perform, the
+                                 indicated option.
+      DON'T (option code) 254    Indicates the demand that the
+                                 other party stop performing,
+                                 or confirmation that you are no
+                                 longer expecting the other party
+                                 to perform, the indicated option.
+      IAC                 255    Data Byte 255. 
+</pre>
+<p>  
+The most significant of these are WILL, WON'T, DO and DON'T. Further 
+explanation of these from RFC 854 says: 
+In summary, WILL XXX is sent, by either party, to indicate that party's
+desire (offer) to begin performing option XXX, DO XXX and DON'T XXX being 
+its positive and negative acknowledgments; similarly, DO XXX is sent 
+to indicate a desire (request) that the other party (i.e., the recipient 
+of the DO) begin performing option XXX, WILL XXX and WON'T XXX being 
+the positive and negative acknowledgments. Since the NVT is what is 
+left when no options are enabled, the DON'T and WON'T responses are 
+guaranteed to leave the connection in a state which both ends can handle. 
+Thus, all hosts may implement their TELNET processes to be totally unaware 
+of options that are not supported, simply returning a rejection to 
+(i.e., refusing) any option request that cannot be understood. 
+<p>
+These basic commands can be seen in the following
+debug trace from Emu3270:
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+Input queue length: 3
+Recv:  (3)
+000000  FF FD 18 00 00 00 00 00 00 00 00 00 00 00 00 00   *................*
+In: IAC DO Terminal Type
+Out: IAC WILL Terminal Type
+Send:  (3)
+000000  FF FB 18 00 00 00 00 00 00 00 00 00 00 00 00 00   *................*
+Input queue length: 6
+Recv:  (6)
+000000  FF FA 18 01 FF F0 00 00 00 00 00 00 00 00 00 00   *................*
+In: IAC SB Terminal Type SEND
+Out: IAC SB Terminal Type IS IBM-3278-3
+Out: IAC SE
+In: IAC SE
+Send:  (16)
+000000  FF FA 18 00 49 42 4D 2D 33 32 37 38 2D 33 FF F0   *....IBM-3278-3..*
+Input queue length: 12
+Recv:  (12)
+000000  FF FD 19 FF FB 19 FF FD 00 FF FB 00 00 00 00 00   *................*
+In: IAC DO End of Record
+Out: IAC WILL End of Record
+In: IAC WILL End of Record
+Out: IAC DO End of Record
+In: IAC DO Binary Transmission
+Out: IAC WILL Binary Transmission
+In: IAC WILL Binary Transmission
+Out: IAC DO Binary Transmission
+Send:  (12)
+000000  FF FB 19 FF FD 19 FF FB 00 FF FD 00 00 00 00 00   *................*
+Input queue length: 6
+Recv:  (6)
+000000  FF FD 00 FF FB 00 00 00 00 00 00 00 00 00 00 00   *................*
+In: IAC DO Binary Transmission
+Out: IAC WILL Binary Transmission
+In: IAC WILL Binary Transmission
+Out: IAC DO Binary Transmission
+Send:  (6)
+000000  FF FB 00 FF FD 00 00 00 00 00 00 00 00 00 00 00   *................*
+
+</pre></td></tr><tr><td>Figure 6. - Telnet - option negotiation.</td></tr></table>
+<p>
+The code that performs the above negotiation is found 
+RecThrd.pas It is very simple code, which for the
+most part refuses to do any option requested, with 
+the exception of "End of Record", "Binary Transmission",
+and "Terminal Type". The code looks like:
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+
+      while InDataLen > 0 do
+        begin
+          if (pInTcmd^.c_iac = IAC) and (pInTcmd^.c_cmd <> $FF) then
+            begin  { Telnet command(s) }   
+              if pInTcmd^.c_cmd = C_EOR then   { IAC EOR }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)) ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 2) ;
+                  InDataLen := InDataLen - 2 ;   
+                  if length(outstr) > 0 then  { got some 3270 data stream ? }
+                    begin  
+                      if deb then
+                        Log('  DsIn: '+Format('%d',[length(outstr)])) ;
+                      {
+                         This is telnet end of record indicator - schedule the
+                         processing of the currently collected  data stream
+                         now
+                      }
+                      DataStreamBuf := outstr ;    { copy to global storage }
+                      Synchronize(ProcessDataStream) ;
+                      outstr := '' ;
+                    end ;
+                end
+              else if pInTcmd^.c_cmd = C_DO then   { IAC DO xx }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                      +' '+TFunc(pInTcmd^.c_func)) ;
+                  pOutTcmd^.c_iac := IAC ;
+                  if (pInTcmd^.c_func = TOPT_TERM) or
+                     (pInTcmd^.c_func = TOPT_BIN) or
+                     (pInTcmd^.c_func = TOPT_EOR) then
+                    begin
+                      if (pInTcmd^.c_func = TOPT_EOR) then
+                        EorFlag := True ;
+                      pOutTcmd^.c_cmd := C_WILL ;
+                    end
+                  else
+                    pOutTcmd^.c_cmd := C_WONT ;
+                  pOutTcmd^.c_func := pInTcmd^.c_func ;
+                  if deb then
+                    Log('Out: IAC '+TCmd(pOutTcmd^.c_cmd)
+                      +' '+TFunc(pOutTcmd^.c_func)) ;
+                  pOutTcmd := Pointer(PChar(pOutTcmd) + 3) ;
+                  OutDataLen := OutDataLen  + 3 ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 3) ;
+                  InDataLen := InDataLen - 3 ;
+                end
+              else if pInTcmd^.c_cmd = C_DONT then   { IAC DONT xx }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                      +' '+TFunc(pInTcmd^.c_func)) ; 
+                  if (pInTcmd^.c_func = TOPT_EOR) then
+                    EorFlag := False ;
+                  pOutTcmd^.c_iac := IAC ;
+                  pOutTcmd^.c_cmd := C_WONT ;
+                  pOutTcmd^.c_func := pInTcmd^.c_func ;
+                  if deb then
+                    Log('Out: IAC '+TCmd(pOutTcmd^.c_cmd)
+                      +' '+TFunc(pOutTcmd^.c_func)) ;
+                  pOutTcmd := Pointer(PChar(pOutTcmd) + 3) ;
+                  OutDataLen := OutDataLen  + 3 ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 3) ;
+                  InDataLen := InDataLen - 3 ;
+                end
+              else if pInTcmd^.c_cmd = C_WILL then   { IAC WILL xx }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                      +' '+TFunc(pInTcmd^.c_func)) ;
+                  pOutTcmd^.c_iac := IAC ;
+                  if (pInTcmd^.c_func = TOPT_TERM) or
+                     (pInTcmd^.c_func = TOPT_BIN) or
+                     (pInTcmd^.c_func = TOPT_EOR) then
+                    pOutTcmd^.c_cmd := C_DO
+                  else
+                    pOutTcmd^.c_cmd := C_DONT ;
+                  pOutTcmd^.c_func := pInTcmd^.c_func ;
+                  if deb then
+                    Log('Out: IAC '+TCmd(pOutTcmd^.c_cmd)
+                      +' '+TFunc(pOutTcmd^.c_func)) ;
+                  pOutTcmd := Pointer(PChar(pOutTcmd) + 3) ;
+                  OutDataLen := OutDataLen  + 3 ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 3) ;
+                  InDataLen := InDataLen - 3 ;
+                end
+              else if pInTcmd^.c_cmd = C_WONT then  { IAC WONT xx }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                      +' '+TFunc(pInTcmd^.c_func)) ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 3) ;
+                  InDataLen := InDataLen - 3 ;
+                end
+              else if pInTcmd^.c_cmd = C_SB then   { IAC SB xx ... }
+                begin
+                  if (pInTcmd^.c_func = TOPT_TERM) then
+                    begin                  { IAC SB TERM-TYPE SEND }
+                      if deb then
+                        Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                          +' '+TFunc(pInTcmd^.c_func)+' SEND') ;
+                      pOutTermTcmd := Pointer(pOutTcmd) ;
+
+                      pOutTermTcmd^.c_iac := IAC ;
+                      pOutTermTcmd^.c_sb := C_SB ;
+                      pOutTermTcmd^.c_term := TOPT_TERM ;
+                      pOutTermTcmd^.c_is := C_NULL ; 
+                      case Model of
+                        ibm3278_2: pOutTermTcmd^.c_type :='IBM-3278-2';
+                        ibm3278_3: pOutTermTcmd^.c_type :='IBM-3278-3';
+                        ibm3278_4: pOutTermTcmd^.c_type :='IBM-3278-4';
+                      else
+                        pOutTermTcmd^.c_type := 'IBM-3278-2' ;
+                      end ;
+                      pOutTermTcmd^.c_iace := IAC ;
+                      pOutTermTcmd^.c_se := C_SE ;
+
+                      pOutTcmd := Pointer(PChar(pOutTcmd) + 16) ;
+                      OutDataLen := OutDataLen  + 16 ;
+                      pInTcmd := Pointer(PChar(pInTcmd) + 4) ;
+                      InDataLen := InDataLen - 4 ;
+                      if deb then
+                        begin
+                          Log('Out: IAC '+TCmd(pOutTermTcmd^.c_sb)
+                            +' '+TFunc(pOutTermTcmd^.c_term)+' IS '
+                            +pOutTermTcmd^.c_type) ;
+                          Log('Out: IAC '+TCmd(pOutTermTcmd^.c_se) ) ;
+                        end ;
+                    end
+                  else
+                    begin
+                      if deb then
+                        Log('In: IAC '+TCmd(pInTcmd^.c_cmd)
+                          +' '+TFunc(pInTcmd^.c_func)) ;
+                      pInTcmd := Pointer(PChar(pInTcmd) + 3) ;
+                      InDataLen := InDataLen - 3 ;
+                    end ;
+                end
+{
+... Lines removed
+}
+            end
+
+          else
+            begin  { Application data }
+              while InDataLen > 0 do
+                begin
+                  if (pInTcmd^.c_iac = IAC) 
+                    and (pInTcmd^.c_cmd = $FF) then
+                    begin { telnet escaped FF character, just keep 1}
+                      outstr := outstr + Char($FF) ;
+                      InDataLen := InDataLen - 2 ;
+                      pInTcmd := Pointer(PChar(pInTcmd) + 2) ;
+                    end
+                  else if (pInTcmd^.c_iac = IAC) then
+                    break   { imbedded telnet sequence }
+                  else
+                    begin   { 3270 data stream char - stash it }
+                      outstr := outstr + Char(pInTcmd^.c_iac) ;
+                      InDataLen := InDataLen - 1 ;
+                      pInTcmd := Pointer(PChar(pInTcmd) + 1) ;
+                    end ;
+                end ;
+            end ;
+
+          if InDataLen = 0 then
+            begin
+{
+... Lines removed
+    receives more data from the server.     
+}
+            end ;   
+
+          if Terminated then
+            break ;
+        end ;  { of while datalen > 0 }
+</pre></td></tr><tr><td>Figure 7. - Telnet - option negotiation code (in RecThrd.pas).</td></tr></table>
+<p>
+
+
+
+<!-------------------------------------------------------------------------------->
+<h3>Processing keystroke input.</h3>
+<p>
+The key board input was initially handled by the FormKeyDown procedure
+which is the usual way to handle key board events for a Delphi form. The code
+for this procedure (shown in figure 8) determines what accelerator key may
+have been pressed, and with that and the key code, looks up a table
+to find the function code that should be executed. The table if function
+codes is initialized either internally or by reading the config file, and
+it can also be changed at run time by the KeyMap dialog.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure Tscreenf.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+{
+  Handles all keyboard input. Maps the keycode/shift/alt/ctrl onto
+  its emulator function using the key table. Then calls that function.
+}
+var
+  fn: integer ;          { temp counter }
+begin
+  { ignore the key when in test mode }
+  if not test then
+    begin
+      { create some debug info and determine function code }
+      LastKey := key ;
+      LastAlt := ' ' ;
+      { if key is shift, ctrl or alt }
+      if (key = $10) or (key = $11) or (key = $12) or
+         (key = $06) or (key = $07) then
+        fn := KeyTable[key].StdCode
+      else
+        begin
+          if ssShift in Shift then
+            begin
+              LastAlt := 'S' ;
+              fn := KeyTable[key].ShiftCode ;
+            end
+          else if ssAlt in Shift then
+            begin
+              LastAlt := 'A' ;
+              fn := KeyTable[key].AltCode ;
+            end
+          else if ssCtrl in Shift then
+            begin
+              LastAlt := 'C' ;
+              fn := KeyTable[key].CtrlCode ;
+            end
+          else
+            fn := KeyTable[key].StdCode ;
+        end ;
+
+      if KbdLocked then
+        begin
+          if fn = kcReset then
+            Reset
+          else
+            LockKeyBoard('?+    ',ALARM) ;
+        end
+      else
+        begin
+          { process the function code }
+          case fn of
+            kcBackTab:     BackTab ;
+            kcEraseToEof:  EraseEof ;
+            kcNewLine:     NewLine ;
+            kcForwardTab:  ForwardTab ;
+            kcClearScreen: ClearScreen ;
+            kcAlterCursor: AlterCursor ;
+            kcCursorHome:  CursorHome ;
+            kcCursorLeft:  CursorLeft(1) ;
+            kcCursorRight: CursorRight(1) ;
+            kcCursorDown:  CursorDown(1) ;
+            kcCursorUp:    CursorUp(1) ;
+            kcInsertOn:    InsertOn ;
+            kcDeleteChar:  DeleteCh ;
+            kcCapsOn:      CapsOn ;
+            kcReset:       Reset ;
+            kcCapsOff:     CapsOff ;
+            kcAlt:         Nothing ;
+
+            kcCursorLeftFast:  CursorLeft(2) ;
+            kcCursorRightFast: CursorRight(2) ;
+            kcCursorDownFast:  CursorDown(2) ;
+            kcCursorUpFast:    CursorUp(2) ;
+
+            kcNumber1:     AddChar('1',True) ;
+            kcNumber2:     AddChar('2',True) ;
+            kcNumber3:     AddChar('3',True) ;
+            kcNumber4:     AddChar('4',True) ;
+            kcNumber5:     AddChar('5',True) ;
+            kcNumber6:     AddChar('6',True) ;
+            kcNumber7:     AddChar('7',True) ;
+            kcNumber8:     AddChar('8',True) ;
+            kcNumber9:     AddChar('9',True) ;
+            kcNumber0:     AddChar('0',True) ;
+
+            kcSymbolRightParen: AddChar(')',False) ;
+{
+... Lines removed
+}
+            kcSymbolSpace:            AddChar(' ',False) ;
+
+            kcEnter: FunctionKey(0);
+{
+... Lines removed
+}
+            kcPF24:  FunctionKey(24);
+
+            kcExtStatus:
+              begin
+                if ExtStatus then
+                  ExtStatus := false
+                else
+                  ExtStatus := true ;
+                DrawCursor(CsrCol,CsrRow) ;
+              end ;
+
+            kcColorRed:       CurCellColor := Char(ccRed) ;
+            kcColorPink:      CurCellColor := Char(ccPink) ;
+            kcColorGreen:     CurCellColor := Char(ccGreen) ;
+            kcColorYellow:    CurCellColor := Char(ccYellow) ;
+            kcColorBlue:      CurCellColor := Char(ccBlue) ;
+            kcColorTurquoise: CurCellColor := Char(ccTurquoise) ;
+            kcColorWhite:     CurCellColor := Char(ccWhite) ;
+            kcColorDefault:   CurCellColor := Char(ccDefault) ;
+
+            kcHiliteReverse:   CurCellHilite := Char(chReverse) ;
+            kcHiliteBlink:     CurCellHilite := Char(chBlink) ;
+            kcHiliteUnderLine: CurCellHilite := Char(chUnderLine) ;
+            kcHiliteDefault:   CurCellHilite := Char(chDefault) ;
+
+            kcPA1: ActionKey(1) ;
+            kcPA2: ActionKey(2) ;
+            kcPA3: ActionKey(3) ;
+
+            kcRule:
+              begin
+                if Rule then
+                  Rule := false
+                else
+                  Rule := true ;
+                DrawCursor(CsrCol,CsrRow) ;
+              end ;
+
+            kcAttn:            Attention ;
+            kcSysreq:          Sysreq ;
+            kcSelectPSA:       SelectPS(1) ;
+            kcSelectPSB:       SelectPS(2) ;
+            kcSelectPSDefault: SelectPS(0) ;
+          else
+            LockKeyBoard('-f    ',ALARM) ;
+          end ; { of Case fn }
+      end ;  { of keyboard not locked }
+    end ;  { not test }
+  ShowStatus ;
+  key := 0 ; { handle all keys }
+end ;
+</pre></td></tr><tr><td>Figure 8. - FormKeyDown - Key stroke input code (in screenu.pas).</td></tr></table>
+<p>
+The FormKeyDown code works fine for
+most keys, however some people who I gave the emulator to did not like
+the inability to use the Tab keys and wanted to use the right hand
+control key as an Enter key. To solve those problems I added the 
+AppMessageHandler code shown in figure 9. The screenu units FormCreate 
+procedure assigns Application.OnMessage the address of the AppMessageHandler
+procedure. From that point all Windows messages for the application are sent to the 
+AppMessageHandler procedure, which looks at all the WM_KEYDOWN messages.
+For WM_KEYDOWN messages that FormKeyDown did not surface AppMessageHandler
+synthesizes a KeyDown event and calls FormKeyDown to process it. It
+generates key codes that were not previously used by Form Keydown.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure Tscreenf.FormCreate(Sender: TObject);
+var
+  TxMetric: TTextMetric ;
+  Bitmap: TBitmap ;
+begin
+<b>  Application.OnMessage := AppMessageHandler ;</b>
+
+  {
+  ....
+  Code removed from here.              
+  ....
+  } 
+
+end ;
+
+
+procedure Tscreenf.AppMessageHandler(var Msg: TMsg; var Handled: boolean) ;
+{
+  This routine intercepts all the windows events (as specified by
+  Application.OnMessage in the FormCreate procedure above). It examines
+  the key press message only. This is done to get certain keystrokes
+  that are normally not available in the FormKeyDown routine below.
+  These keys are: tab, left-shift, rigth-shift, left-ctrl, right-ctrl,
+  left set of arrow keys, numeric arrow keys.
+  Two flags are set based on the detection of these keys, and the rest of
+  the key processing is done by FormKeyDown.
+}
+type
+  TSp = record
+    Lo: word ;
+    Hi: word ;
+  end  ;
+  PSp = ^TSp ;
+var
+  wp, lp: PSp ;
+  SynthKey: word ;
+  DoKeyDown: boolean ;
+  KeyState: short ;
+  Shift: TShiftState ;
+begin
+<b>  if (Msg.message = WM_KEYDOWN) then</b>
+    begin
+      wp := addr(msg.wParam) ;
+      lp := addr(msg.lParam) ;
+      DoKeydown := True ;
+      case wp.lo of
+        $2e: if lp.hi = $53 then
+               SynthKey := $aa   { synthesize num . }
+             else
+               DoKeyDown := False ;
+        $2d: if lp.hi = $52 then
+               SynthKey := $a9   { synthesize num 0 }
+             else
+               DoKeyDown := False ;
+{
+... Lines removed
+}
+        $11: if lp.hi = $11d then
+               SynthKey := $07   { synthesize RightHand Ctrl }
+             else
+               DoKeyDown := False ;
+        $10: if lp.hi = $36 then
+               SynthKey := $06   { synthesize RightHand Shift }
+             else
+               DoKeyDown := False ;
+        $9:  if lp.hi = $f then
+               SynthKey := $09   { Surface Tab }
+             else
+               DoKeyDown := False ;
+      else
+        DoKeyDown := False ;
+      end ; { of case }
+      if DoKeyDown then
+        begin
+          Shift := [] ;
+          KeyState := GetKeyState(VK_SHIFT) ;
+          if (KeyState and $1000)=$1000 then
+            Shift := Shift + [ssShift] ;
+
+          KeyState := GetKeyState(VK_CONTROL) ;
+          if (KeyState and $1000)=$1000 then
+            Shift := Shift + [ssCtrl] ;
+
+          KeyState := GetKeyState(VK_MENU) ;
+          if (KeyState and $1000)=$1000 then
+            Shift := Shift + [ssAlt] ;
+
+<b>          FormKeyDown(screenf, SynthKey, Shift) ;</b>
+          Handled := True ;
+        end
+      else
+        Handled := False ;
+    end
+  else  { not key press }
+    Handled := False ;
+end ;
+</pre></td></tr><tr><td>Figure 9. - AppMessageHandler - Key stroke input code (in screenu.pas).</td></tr></table>
+<p>
+
+
+<!-------------------------------------------------------------------------------->
+<h3>Formating a Delphi canvas like a 3270 screen.</h3>
+<p>
+The emulated 3270 screen area is composed of a bitmap image (ScrImage1)
+that occupies the entire client area of the screenf form. Only a
+few procedures modify the image bitmap canvas (ScrImage1.Canvas). 
+Three procedures display data on the canvas, They are; DispCell, which
+draws a single character from the selected cell onto the canvas; 
+DrawCursor, which draws the cursor in the selected cell; and ShowStatus, 
+which draws the 3270 status area and the information it contains.     
+<p>
+All of these procedures determine the position to draw at using 
+the current fonts width and height which is obtained in the 
+Tscreenf.FormCreate procedure or the ChangeFont1Click procedure. 
+<p>
+In DispCell (see below) the TextOut procedure is used to write the character 
+onto the canvas. Reverse video characters are achieved by
+switching the Brush and Font colors, and changing the Pen.Mode
+to pmXor. Some characters like 0x00, attribute bytes, and 
+non-display fields are always displayed as blanks.
+<p>  
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure Tscreenf.DispCell(x: integer; y: integer; PaintBlanks: boolean) ;
+{
+  Given a buffer cell location this routine displays the buffer contents
+  for that cell on the screen window using that cells attributes.
+}
+var
+  xpos, ypos: integer ;
+begin
+  xpos := (x * FontWidthPix)-FontWidthPix ;
+  ypos := (y * FontHeightPix)-FontHeightPix ;
+  with ScrImage1.Canvas do
+    begin
+      Brush.Style := bsSolid ;
+      Brush.Color := ColorBlack ;
+
+      { if null or attribute then paint as blank }
+      if (ScrBuf[y,x].data = Char(cdDefault)) or
+         (ScrBuf[y,x].data = Char(cdFieldAttr)) then
+        begin
+          if PaintBlanks then
+            begin
+              Font.Style := [] ;
+<b>              TextOut(xpos,ypos,' ') ;</b>
+            end ;
+        end
+      else   { paint presentation characters }
+        begin
+          if (Byte(ScrBuf[y,x].attrib) and caNonDisp) <> caNonDisp then
+            begin
+              Pen.Mode := pmCopy ;
+              Font.Color := ColorMapI2W(ScrBuf[y,x].color) ;
+              if ScrBuf[y,x].hilite = Char(chDefault) then
+                Font.Style := []
+              else if ScrBuf[y,x].hilite = Char(chReverse) then
+                begin
+                  Font.Style := [] ;
+                  Pen.Mode := pmXor ;
+                  Brush.Color := ColorMapI2W(ScrBuf[y,x].color) ;
+                  Font.Color := ColorBlack ;
+                end
+              else if ScrBuf[y,x].hilite = Char(chUnderLine) then
+                Font.Style := [fsUnderline]
+              else if ScrBuf[y,x].hilite = Char(chBlink) then
+                Font.Style := [fsStrikeout]
+              else
+                Font.Style := [] ;
+
+              if (Byte(ScrBuf[y,x].attrib) and caIntens) = caIntens then
+                Font.Style := Font.Style + [fsBold] ;
+
+<b>              TextOut(xpos,ypos,ScrBuf[y,x].data) ;</b>
+            end
+          else
+<b>            TextOut(xpos,ypos,' ') ;</b>
+        end ;
+    end ;
+end ;
+</pre></td></tr><tr><td>Figure 10. - DispCell - Screen display (in screenu.pas).</td></tr></table>
+<p>
+The DrawCursor procedure (following) uses the LineTo or Rectangle 
+procedures to draw the cursor shape, depending on which cursor shape
+is currently selected.
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+procedure Tscreenf.DrawCursor(x: integer; y: integer) ;
+{
+  Draws the cursor on the emulator screen window at the cell location
+  specified, using the current cursor shape.
+}
+var
+  xpos, ypos: integer ;
+begin
+  xpos := (x * FontWidthPix)-FontWidthPix ;
+  ypos := (y * FontHeightPix)-1 ;
+  with ScrImage1.Canvas do
+    begin
+      if csrShape = csrUnderLine then
+        begin
+          Pen.Mode := pmWhite ;
+          Pen.Color := ColorWhite ;
+          Brush.Style := bsSolid ;
+          Brush.Color := ColorWhite ;
+          MoveTo(xpos,ypos) ;
+<b>          LineTo(xpos+FontWidthPix,ypos) ;</b>
+        end
+      else
+        begin
+          Pen.Mode := pmXor ;
+          Pen.Color := ColorMapI2W(ScrBuf[y,x].color) ;
+          Brush.Style := bsSolid ;
+          Brush.Color := ColorMapI2W(ScrBuf[y,x].color) ;
+<b>          Rectangle(xpos,ypos-FontHeightPix+1,xpos+FontWidthPix,ypos) ;</b>
+        end ;
+    end ;
+end ;
+</pre></td></tr><tr><td>Figure 11. - DrawCursor - Screen display (in screenu.pas).</td></tr></table>
+<p>
+The ShowStatus procedure uses the LineTo, Rectangle, and TextOut 
+procedures to draw the 3270 status area. The format of the status area 
+changes depending on whether test or extended status modes are active.
+<p>
+
+
+<!-------------------------------------------------------------------------------->
+<h3>Multithreaded Delphi program.</h3>
+<p>
+Emu3270 uses two threads when connected to a host system. The primary thread
+is the thread that manages the user interaction with the screenf form. The primary thread
+is started when the Emu3270 program is started. One secondary thread is started 
+just after a connection with a remote hosts system is established. This secondary
+thread is started so that data from the remote host can be received 
+asynchronously or at the same time as the user is interacting with
+the primary thread via the mouse and keyboard. The secondary thread is built using
+the Delphi TThread class.
+<p>
+Delphi encapsulates the Windows thread API's into an Object Pascal class called
+TThread. To use Delphi threads a subclass of TThread must be created
+and the execute procedure must be overridden. In the code extract below (figure 13) the 
+new class is called RecvThrd and procedure RecvThrd.Execute contains the code to be 
+executed in the thread. 
+<p>
+The new thread variable instance is created as a global variable by the screenu.pas
+unit. The new thread would normally start immediately, however in this case the constructor 
+is overridden and it passes the inherited Create procedure a value of False which
+means the execute procedure is not run. Later
+the secondary thread is started using:
+<p>
+RecThread := RecvThrd.Create(soc) ;
+<p>
+This is done by the MakeConnect procedure in the telnetu.pas unit (see figure 2) just 
+after the host connection is established.   
+<p>
+<table border="1" cellspacing="1" cellpadding="5"><tr><td><pre>
+
+type
+<b>  RecvThrd = class(TThread)</b>
+  private
+    IOSocket: TSocket ;
+    { Private declarations }
+  protected   
+    procedure Log(str: string) ;
+    procedure DumpChar(ch: char) ; 
+    procedure DumpFlush ;
+    procedure DispChar(ch: byte) ;
+    procedure ProcessDataStream ;
+    procedure LogDisp ;
+    procedure Display ;
+<b>    procedure Execute; override;</b>
+  public
+<b>    constructor Create(ios: TSocket) ;</b>
+  end;
+
+  TBuf = array[0..IO_BUF_SIZE] of char ;
+
+threadvar
+  s: string[16] ;
+  numchars: integer ;
+  bytecnt: integer ;
+
+{
+... Lines removed
+}
+
+constructor RecvThrd.Create(ios: TSocket) ;
+var
+  i: integer ;
+begin
+  FreeOnTerminate := True ;
+  IOSocket := ios ;
+  numchars := 0 ;
+  for i := 1 to 16 do
+    s[i] := chr(0) ;
+<b>  inherited Create(False) ; </b> { dont run thread yet }
+end ;
+
+procedure RecvThrd.ProcessDataStream ; { runs as part of main thread }
+begin   
+  Ds3270.DataIn(DataStreamBuf) ;
+end;
+
+procedure RecvThrd.Execute ;
+{
+... Lines removed
+}
+begin   
+  RecThreadRunning := true ;
+
+{
+... Lines removed
+}
+
+      while InDataLen > 0 do
+        begin
+          if (pInTcmd^.c_iac = IAC) and (pInTcmd^.c_cmd <> $FF) then
+            begin  { Telnet command(s) }   
+              if pInTcmd^.c_cmd = C_EOR then   { IAC EOR }
+                begin
+                  if deb then
+                    Log('In: IAC '+TCmd(pInTcmd^.c_cmd)) ;
+                  pInTcmd := Pointer(PChar(pInTcmd) + 2) ;
+                  InDataLen := InDataLen - 2 ;   
+                  if length(outstr) > 0 then  { got some 3270 data stream ? }
+                    begin  
+                      if deb then
+                        Log('  DsIn: '+Format('%d',[length(outstr)])) ;
+                      {
+                         This is telnet end of record indicator - schedule the
+                         processing of the currently collected  data stream
+                         now
+                      }
+                      DataStreamBuf := outstr ;    { copy to global storage }
+<b>                      Synchronize(ProcessDataStream) ;</b>
+                      outstr := '' ;
+                    end ;
+
+{
+... Lines removed
+}           
+
+<b>          if Terminated then </b>
+            break ;
+        end ;  { of while datalen > 0 }
+
+    end ;  { of recv OK }
+  RecThreadRunning := false ;
+end;
+
+</pre></td></tr><tr><td>Figure 13. - RecThrd - Multiple threads (in RecThrd.pas).</td></tr></table>
+<p>
+Once the secondary thread is running it occasionally needs to pass data to the primary
+thread. To do this the data is placed in a global variable that both threads can 
+address. Then the Synchronize(ProcessDataStream) procedure is called with the 
+name of a procedure that is run within the context of the primary thread. Here
+the procedure ProcessDataStream uses Ds3270.DataIn to process the inbound
+3270 data stream.
+<p>
+When the 3270 session is finished the secondary thread is stopped
+using the Terminate() procedure. This procedure is called in the 
+Disconnect routine (see figure 5) of telnetu.pas
+<p>  
+
+
+<!-------------------------------------------------------------------------------->
+<h2>References Used</h2>
+<p>
+The following references were used extensively while creating the Emu3270 program. 
+<p>
+<ul>
+<li> Borland Delphi reference manuals.
+<li> Various RFC's that are relevant to telnet: RFC854 and others.
+<li> Building Internet applications with Delphi 2 by Davis Chapman, QUE, 1996, isbn 0-7897-0732-2
+<li> Delphi 2 Developers Guide. by Xavier Pacheco and Steve Teixeira, Borland Press 1996, isbn 0-672-30914-9
+<li> Delphi 2 Unleashed. by Charles Calvert, Borland Press and Sams Publishing, 1996, isbn 0-672-30858-4
+<li> Unix System V Network Programming. by Stephen A. Rago, Addison Wesley, 1993, isbn 0-201-56318-5
+<li> Network Programming in Windows NT. Alok K Sinha, Addison Wesley, 1993, isbn 0-201-59056-5
+<li> 3270 Information Display System, Data Stream Programmers Reference, Eighth edition (June 1992), GA23-0059-07
+<li> IBM 3179-G/3192-G Color Graphics Display Station, Descripption, Third Edition (Sept 1988), GA18-2589-2
+<li> IBM 3270 Personal Computer Graphics Control Program, Data Stream Reference, First Edition (Mar 1985), HUR 9058 
+</ul> 
+</body>
+</HTML>
